@@ -1,0 +1,198 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+model User {
+  id                String    @id @default(cuid())
+  fullName          String
+  email             String    @unique
+  password          String
+  role              Role      @default(STUDENT)
+  isActive          Boolean   @default(true)
+  phone             String?
+  profileImage      String?
+  gender            Gender?
+  dateOfBirth       DateTime?
+  parentName        String?
+  parentPhone       String?
+  parentNic         String?
+  gradeId           String?
+  grade             Grade?    @relation(fields: [gradeId], references: [id])
+  classId           String?
+  class             Class?    @relation("ClassStudents", fields: [classId], references: [id])
+  address           Address?
+  resetTokenHash    String?
+  resetTokenExpires DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  teacherClasses  Class[]          @relation("ClassTeacher")
+  teacherSubjects TeacherSubject[]
+  marks           Mark[]
+  attendance      Attendance[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+
+  @@index([role])
+  @@index([classId])
+}
+
+model Address {
+  id         String  @id @default(cuid())
+  number     String?
+  street     String?
+  city       String?
+  district   String?
+  postalCode String?
+  userId     String  @unique
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Grade {
+  id       String  @id @default(cuid())
+  name     String  @unique
+  students User[]
+  classes  Class[]
+}
+
+model Subject {
+  id       String           @id @default(cuid())
+  name     String           @unique
+  code     String           @unique
+  classes  ClassSubject[]
+  teachers TeacherSubject[]
+  exams    Exam[]
+}
+
+model Class {
+  id         String         @id @default(cuid())
+  name       String
+  gradeId    String
+  grade      Grade          @relation(fields: [gradeId], references: [id])
+  teacherId  String?
+  teacher    User?          @relation("ClassTeacher", fields: [teacherId], references: [id])
+  students   User[]         @relation("ClassStudents")
+  subjects   ClassSubject[]
+  exams      Exam[]
+  attendance Attendance[]
+  createdAt  DateTime       @default(now())
+
+  @@unique([name, gradeId])
+}
+
+model ClassSubject {
+  classId   String
+  subjectId String
+  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@id([classId, subjectId])
+}
+
+model TeacherSubject {
+  teacherId String
+  subjectId String
+  teacher   User    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@id([teacherId, subjectId])
+}
+
+model Attendance {
+  id        String           @id @default(cuid())
+  studentId String
+  student   User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classId   String
+  class     Class            @relation(fields: [classId], references: [id], onDelete: Cascade)
+  date      DateTime         @db.Date
+  status    AttendanceStatus
+  note      String?
+  createdAt DateTime         @default(now())
+
+  @@unique([studentId, classId, date])
+  @@index([classId, date])
+}
+
+model Exam {
+  id        String   @id @default(cuid())
+  title     String
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id])
+  date      DateTime
+  maxMarks  Int      @default(100)
+  published Boolean  @default(false)
+  marks     Mark[]
+  createdAt DateTime @default(now())
+
+  @@index([classId, subjectId])
+}
+
+model Mark {
+  id        String   @id @default(cuid())
+  examId    String
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  score     Float
+  grade     String?
+  createdAt DateTime @default(now())
+
+  @@unique([examId, studentId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

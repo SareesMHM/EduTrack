@@ -1,0 +1,20 @@
+import { Router } from 'express';
+import * as c from '../controllers/student.controller';
+import { requireAuth } from '../middleware/requireAuth';
+import { requireOwnership } from '../middleware/requireOwnership';
+import { requireRole } from '../middleware/requireRole';
+import { validate } from '../middleware/validate';
+import { idParam } from '../validators/query.validator';
+import * as v from '../validators/student.validator';
+
+const r = Router();
+r.use(requireAuth);
+r.get('/me/profile', requireRole('STUDENT'), c.myProfile);
+r.patch('/me/profile', requireRole('STUDENT'), validate({ body: v.selfContactBody }), c.updateMyContact);
+r.get('/', requireRole('ADMIN', 'TEACHER'), validate({ query: v.studentListQuery }), c.list);
+r.get('/:id', validate({ params: idParam }), requireOwnership(), c.get);
+r.patch('/:id', requireRole('ADMIN'), validate({ params: idParam, body: v.updateStudentBody }), c.update);
+r.post('/:id/transfer', requireRole('ADMIN'), validate({ params: idParam, body: v.transferBody }), c.transfer);
+r.get('/:id/attendance-summary', validate({ params: idParam }), requireOwnership(), c.attendance);
+r.get('/:id/results-summary', validate({ params: idParam }), requireOwnership(), c.results);
+export default r;

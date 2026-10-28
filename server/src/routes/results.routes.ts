@@ -1,0 +1,20 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import * as c from '../controllers/result.controller';
+import { requireAuth } from '../middleware/requireAuth';
+import { requireOwnership } from '../middleware/requireOwnership';
+import { requireRole } from '../middleware/requireRole';
+import { validate } from '../middleware/validate';
+
+const staff = requireRole('ADMIN', 'TEACHER');
+const examParam = z.object({ examId: z.string() });
+const studentParam = z.object({ studentId: z.string() });
+const r = Router();
+r.use(requireAuth);
+r.get('/published', c.published);
+r.get('/exam/:examId/summary', staff, validate({ params: examParam }), c.summary);
+r.get('/exam/:examId/ranking', staff, validate({ params: examParam }), c.ranking);
+r.post('/exam/:examId/publish', staff, validate({ params: examParam }), c.publish);
+r.get('/report-card/:studentId', validate({ params: studentParam }), requireOwnership('studentId'), c.reportCard);
+r.get('/student/:studentId/exam/:examId', validate({ params: studentParam.merge(examParam) }), requireOwnership('studentId'), c.detail);
+export default r;
